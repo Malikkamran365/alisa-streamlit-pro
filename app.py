@@ -6,7 +6,21 @@ from typing import List, Dict, Any, Optional
 
 import streamlit as st
 import requests
-
+# ---- Real-time clock helpers ----
+def fetch_now(tz: str = "Asia/Karachi") -> str:
+    try:
+        r = requests.get(f"http://worldtimeapi.org/api/timezone/{tz}", timeout=6)
+        if r.status_code == 200:
+            j = r.json()
+            dt = j.get("datetime", "")
+            if dt:
+                date_part, time_part = dt.split("T", 1)
+                time_part = time_part.split("+")[0].split("Z")[0][:8]
+                return f"{date_part} {time_part} ({tz})"
+    except Exception:
+        pass
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d %H:%M (server)")
 # Optional deps
 try:
     from gtts import gTTS
@@ -166,7 +180,9 @@ def call_openai_compatible(messages: List[Dict[str, str]], system_prompt: str) -
     if not used_key:
         return "⚠️ No API key found. Add it in the sidebar or Secrets."
     used_model = get_model()
-
+# Inject live date/time into system prompt
+    now_str = fetch_now()
+    system_prompt = f"{system_prompt}\n\nCurrent date and time: {now_str}"
     url = f"{api_base.rstrip('/')}/chat/completions"
     payload = {
         "model": used_model,
